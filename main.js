@@ -26,10 +26,8 @@ let init = async () => {
     document.getElementById('user-1').srcObject = localStream
 }
 
-// create an offer - alwasy add an async function - peer connection object
-// add servers object into the create offer because we want to let it know which STUN server to use
-// add all ICE candidates to the Offer
-let createOffer = async () => {
+// clean up - create a new function called createPeerConnection
+let createPeerConnection = async (sdpType) => {
     peerConnection = new RTCPeerConnection(servers)
 
     remoteStream = new MediaStream()
@@ -47,9 +45,18 @@ let createOffer = async () => {
 
     peerConnection.onicecandidate = async (event) =>{
         if(event.candidate) {
-            document.getElementById('offer-sdp').value = JSON.stringify(peerConnection.localDescription)
+            document.getElementById(sdpType).value = JSON.stringify(peerConnection.localDescription)
         }
     }
+
+}
+
+
+// create an offer - alwasy add an async function - peer connection object
+// add servers object into the create offer because we want to let it know which STUN server to use
+// add all ICE candidates to the Offer
+let createOffer = async () => {
+    createPeerConnection('offer-sdp')
 
     let offer = await peerConnection.createOffer()
     await peerConnection.setLocalDescription(offer)
@@ -58,26 +65,8 @@ let createOffer = async () => {
 }
 
 let createAnswer = async () => {
-    peerConnection = new RTCPeerConnection(servers)
-
-    remoteStream = new MediaStream()
-    document.getElementById('user-2').srcObject = remoteStream
-
-    localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream)
-    })
-
-    peerConnection.ontrack = async (event) => {
-        event.streams[0].getTracks().forEach((track) => {
-            remoteStream.addTrack(track)
-        })
-    }
-
-    peerConnection.onicecandidate = async (event) =>{
-        if(event.candidate) {
-            document.getElementById('offer-sdp').value = JSON.stringify(peerConnection.localDescription)
-        }
-    }
+    createPeerConnection('answer-sdp')
+    
 
     let offer = document.getElementById('offer-sdp').value
     if(!offer) return alert('Retrieve offer from peer first...')
