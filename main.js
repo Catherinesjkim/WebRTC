@@ -91,9 +91,24 @@ let createAnswer = async () => {
     document.getElementById('answer-sdp').value = JSON.stringify(answer)
 }
 
+// add a function called Answer - create remote description with answer from the offer of local description
+// get the answer from the DOM 
+let addAnswer = async () => {
+    let answer = document.getElementById('answer-sdp').value
+    if(!answer) return alert('Retrieve answer from peer first...')
+
+    answer = JSON.parse(answer)
+
+    if(!peerConnection.currentRemoteDescription){
+        peerConnection.setRemoteDescription(answer)
+    }
+    
+}
+
 // this init function will trigger the second a user loads a page
 init()
 
 // Add an event listener on the DOM 
 document.getElementById('create-offer').addEventListener('click', createOffer)
 document.getElementById('create-answer').addEventListener('click', createAnswer)
+document.getElementById('add-answer').addEventListener('click', addAnswer)
