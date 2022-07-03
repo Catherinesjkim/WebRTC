@@ -1,6 +1,8 @@
 // create SDP Offer - source of truth for any connection
 // one object that's going to represent all the info about this connection
 // local stream, etc. will be added here and allow us to connect
+// use Agora RTM SDK for signaling
+let APP_ID = 'e082c5812649491cbf1eeb6254b146d3'
 
 // how we are going to generate ICE candidates from
 let peerConnection;
@@ -8,6 +10,15 @@ let peerConnection;
 // 2 undefined variables- when I get the video and audio feed from our users, I am going to store them inside
 let localStream;
 let remoteStream;
+
+// make sure each use has their own uinique ID in a string and random number to avoid dupes
+let uid = String(Math.floor(Math.random() * 10000))
+
+// authentication to App ID only. Update with a token later for prod env.
+let token = null;
+
+// entire interface for client connection 
+let client; 
 
 // set up STUN server - free from Google - port: 19302 - a list of an object with two URLs
 let servers = {
@@ -22,8 +33,28 @@ let servers = {
 
 // get the user's audio and video stream and display it on the DOM - is camera on?
 let init = async () => {
+    client = await AgoraRTM.createInstance(APP_ID)
+    await client.login({uid, token})
+
+    const channel = client.createChannel('main')
+    channel.join()
+
+    channel.on('MemberJoined', handlePeerJoined)
+    client.on('MessageFromPeer', handleMessageFromPeer)
+
     localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:false})
     document.getElementById('user-1').srcObject = localStream
+}
+
+let handlePeerJoined = async (MemberId) => {
+    console.log('A new peer has joined this room:' , MemberId)
+    createOffer(MemberId)
+}
+
+// function that handles the event of sending a message in text
+let handleMessageFromPeer = async (message, MemberID) => {
+    message = JSON.parse(message.text)
+    console.log('Message:', message)
 }
 
 // clean up - create a new function called createPeerConnection
@@ -55,13 +86,14 @@ let createPeerConnection = async (sdpType) => {
 // create an offer - alwasy add an async function - peer connection object
 // add servers object into the create offer because we want to let it know which STUN server to use
 // add all ICE candidates to the Offer
-let createOffer = async () => {
+let createOffer = async (MemberID) => {
     createPeerConnection('offer-sdp')
 
     let offer = await peerConnection.createOffer()
     await peerConnection.setLocalDescription(offer)
 
     document.getElementById('offer-sdp').value = JSON.stringify(offer)
+    client.sendMessageToPeer({text:JSON.stringify({'type':'offer', 'offer': offer})}, MemberId)
 }
 
 let createAnswer = async () => {
@@ -98,6 +130,6 @@ let addAnswer = async () => {
 init()
 
 // Add an event listener on the DOM 
-document.getElementById('create-offer').addEventListener('click', createOffer)
-document.getElementById('create-answer').addEventListener('click', createAnswer)
-document.getElementById('add-answer').addEventListener('click', addAnswer)
+// document.getElementById('create-offer').addEventListener('click', createOffer)
+// document.getElementById('create-answer').addEventListener('click', createAnswer)
+// document.getElementById('add-answer').addEventListener('click', addAnswer)
