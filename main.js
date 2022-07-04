@@ -46,19 +46,46 @@ let init = async () => {
     document.getElementById('user-1').srcObject = localStream
 }
 
+// which peer joined and see their unique ID. The function that handles the event
 let handlePeerJoined = async (MemberId) => {
-    console.log('A new peer has joined this room:' , MemberId)
+    console.log('A new peer has joined this room:', MemberId)
     createOffer(MemberId)
 }
 
 // function that handles the event of sending a message in text
-let handleMessageFromPeer = async (message, MemberID) => {
+// create an offer
+// create a candidate, could be sent more than one
+// create an answer, triggered when an offer is sent over
+let handleMessageFromPeer = async (message, MemberId) => {
     message = JSON.parse(message.text)
-    console.log('Message:', message)
+    console.log('Message:', message.type)
+    
+    if(message.type === 'offer') {
+        if(!localStream){
+            localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:false})
+            document.getElementById('user-1').srcObject = localStream
+
+        }
+        document.getElementById('offer-sdp').value = JSON.stringify(message.offer)
+        createAnswer(MemberId)
+    }
+
+    if(message.type === 'answer') {
+        document.getElementById('answer-sdp').value = JSON.stringify(message.answer)
+        addAnswer()
+    }
+
+    if(message.type === 'candidate') {
+        if(peerConnection){
+            peerConnection.addIceCandidate(message.candidate)
+        }
+
+    }
 }
 
 // clean up - create a new function called createPeerConnection
-let createPeerConnection = async (sdpType) => {
+// createIceCandidate
+let createPeerConnection = async (sdpType, MemberId) => {
     peerConnection = new RTCPeerConnection(servers)
 
     remoteStream = new MediaStream()
@@ -77,17 +104,18 @@ let createPeerConnection = async (sdpType) => {
     peerConnection.onicecandidate = async (event) =>{
         if(event.candidate) {
             document.getElementById(sdpType).value = JSON.stringify(peerConnection.localDescription)
+            client.sendMessageToPeer({text:JSON.stringify({'type':'candidate', 'candidate': event.candidate})}, MemberId)
         }
     }
 
 }
 
-
 // create an offer - alwasy add an async function - peer connection object
 // add servers object into the create offer because we want to let it know which STUN server to use
 // add all ICE candidates to the Offer
-let createOffer = async (MemberID) => {
-    createPeerConnection('offer-sdp')
+let createOffer = async (MemberId) => {
+
+    createPeerConnection('offer-sdp', MemberId)
 
     let offer = await peerConnection.createOffer()
     await peerConnection.setLocalDescription(offer)
@@ -96,8 +124,8 @@ let createOffer = async (MemberID) => {
     client.sendMessageToPeer({text:JSON.stringify({'type':'offer', 'offer': offer})}, MemberId)
 }
 
-let createAnswer = async () => {
-    createPeerConnection('answer-sdp')
+let createAnswer = async (MemberId) => {
+    createPeerConnection('answer-sdp', MemberId)
     
 
     let offer = document.getElementById('offer-sdp').value
@@ -110,6 +138,7 @@ let createAnswer = async () => {
     await peerConnection.setLocalDescription(answer)
 
     document.getElementById('answer-sdp').value = JSON.stringify(answer)
+    client.sendMessageToPeer({text:JSON.stringify({'type':'answer', 'answer': answer})}, MemberId)
 }
 
 // add a function called Answer - create remote description with answer from the offer of local description
