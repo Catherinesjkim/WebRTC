@@ -2,7 +2,7 @@
 // one object that's going to represent all the info about this connection
 // local stream, etc. will be added here and allow us to connect
 // use Agora RTM SDK for signaling
-let APP_ID = 'e082c5812649491cbf1eeb6254b146d3'
+let APP_ID = 'APP_ID'
 
 // how we are going to generate ICE candidates from
 let peerConnection;
